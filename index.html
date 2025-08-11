@@ -301,7 +301,7 @@
     obstacle: "#ff4444"
   };
 
-  const player = { size: 28, x: 0, y: 0, speed: 5, vx: 0, vy: 0, trail: [] };
+  const player = { size: 40, x: 0, y: 0, speed: 5, vx: 0, vy: 0, trail: [], angle: 0, targetAngle: 0 };
 
   // Game state
   let keys = {};
@@ -353,12 +353,50 @@
     player.vx = 0;
     player.vy = 0;
     player.trail = [];
+    player.angle = 0;
+    player.targetAngle = 0;
   }
 
   function updatePlayerTrail() {
-    player.trail.push({ x: player.x + player.size/2, y: player.y + player.size/2, alpha: 1 });
-    if (player.trail.length > 20) player.trail.shift();
-    player.trail.forEach(t => t.alpha -= 0.05);
+    // Add more trail points for smoother effect
+    if (Math.abs(player.vx) > 0.1 || Math.abs(player.vy) > 0.1) {
+      // Add main trail point
+      player.trail.push({ 
+        x: player.x + player.size/2, 
+        y: player.y + player.size/2, 
+        alpha: 1,
+        size: player.size * 0.3,
+        type: 'main'
+      });
+      
+      // Add spark particles
+      for (let i = 0; i < 3; i++) {
+        const sparkX = player.x + player.size/2 + (Math.random() - 0.5) * player.size * 0.5;
+        const sparkY = player.y + player.size/2 + (Math.random() - 0.5) * player.size * 0.5;
+        player.trail.push({
+          x: sparkX,
+          y: sparkY,
+          alpha: 0.8 + Math.random() * 0.2,
+          size: 2 + Math.random() * 4,
+          type: 'spark',
+          dx: (Math.random() - 0.5) * 2,
+          dy: (Math.random() - 0.5) * 2
+        });
+      }
+    }
+    
+    if (player.trail.length > 40) player.trail.shift();
+    
+    player.trail.forEach(t => {
+      if (t.type === 'spark') {
+        t.x += t.dx;
+        t.y += t.dy;
+        t.alpha -= 0.08;
+      } else {
+        t.alpha -= 0.04;
+      }
+    });
+    
     player.trail = player.trail.filter(t => t.alpha > 0);
   }
 
@@ -445,29 +483,114 @@
     });
   }
 
-  // Drawing helpers
+  // Drawing helpers - MODIFIED SPACESHIP PLAYER
   function drawPlayer() {
-    // trail
-    const prgb = hexToRgb(colors.player);
-    player.trail.forEach(t => {
-      const radius = player.size / 2;
-      ctx.beginPath();
-      ctx.fillStyle = 'rgba(' + prgb.join(',') + ',' + t.alpha + ')';
-      ctx.shadowColor = colors.player;
-      ctx.shadowBlur = 20 * t.alpha;
-      ctx.arc(t.x, t.y, radius, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.shadowBlur = 0;
+    const centerX = player.x + player.size/2;
+    const centerY = player.y + player.size/2;
+    
+    // Smooth rotation - only update target angle when moving
+    if (Math.abs(player.vx) > 0.1 || Math.abs(player.vy) > 0.1) {
+      player.targetAngle = Math.atan2(player.vy, player.vx);
+    }
+    
+    // Smooth angle interpolation
+    let angleDiff = player.targetAngle - player.angle;
+    if (angleDiff > Math.PI) angleDiff -= 2 * Math.PI;
+    if (angleDiff < -Math.PI) angleDiff += 2 * Math.PI;
+    player.angle += angleDiff * 0.15; // Smooth rotation speed
+    
+    // Draw enhanced rocket fire trail and sparks
+    const isMoving = Math.abs(player.vx) > 0.1 || Math.abs(player.vy) > 0.1;
+    
+    player.trail.forEach((t, index) => {
+      if (t.type === 'main') {
+        // Main fire trail
+        const trailSize = t.size * t.alpha * (0.3 + index/player.trail.length * 0.7);
+        
+        // Dynamic fire colors with more variety
+        let fireColor;
+        if (t.alpha > 0.8) {
+          fireColor = `rgba(255, 140, 0, ${t.alpha})`; // Bright orange
+        } else if (t.alpha > 0.6) {
+          fireColor = `rgba(255, 69, 0, ${t.alpha})`; // Red-orange
+        } else if (t.alpha > 0.3) {
+          fireColor = `rgba(220, 20, 60, ${t.alpha})`; // Crimson
+        } else {
+          fireColor = `rgba(139, 0, 0, ${t.alpha})`; // Dark red
+        }
+        
+        ctx.beginPath();
+        ctx.fillStyle = fireColor;
+        ctx.shadowColor = "#ff4500";
+        ctx.shadowBlur = 25 * t.alpha;
+        ctx.arc(t.x, t.y, trailSize, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      } else if (t.type === 'spark') {
+        // Sparks
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255, 215, 0, ${t.alpha})`; // Golden sparks
+        ctx.shadowColor = "#ffd700";
+        ctx.shadowBlur = 10 * t.alpha;
+        ctx.arc(t.x, t.y, t.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
     });
 
-    // player body
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.rotate(player.angle);
+    
+    // Enhanced Spaceship body
     ctx.fillStyle = colors.player;
     ctx.shadowColor = "#00ffcc";
-    // increase glow when multiplier active
-    const glowFactor = 18 * (1 + Math.min(multiplier - 1, 6) * 0.12);
+    const glowFactor = 25 * (1 + Math.min(multiplier - 1, 6) * 0.15);
     ctx.shadowBlur = glowFactor;
-    ctx.fillRect(player.x, player.y, player.size, player.size);
+    
+    // Main body (sleeker design)
+    ctx.fillRect(-player.size/2, -player.size/3, player.size * 0.9, player.size * 0.66);
+    
+    // Enhanced nose cone (more pronounced)
+    ctx.beginPath();
+    ctx.moveTo(player.size/2 * 0.9, 0);
+    ctx.lineTo(player.size/2 * 1.2, -player.size/5);
+    ctx.lineTo(player.size/2 * 1.2, player.size/5);
+    ctx.closePath();
+    ctx.fill();
+    
+    // Enhanced wings with gradient effect
+    ctx.fillStyle = "#4a7c99";
+    ctx.shadowBlur = glowFactor * 0.8;
+    // Top wing - larger and more detailed
+    ctx.fillRect(-player.size/3, -player.size/2 * 0.9, player.size * 0.6, player.size/6);
+    // Bottom wing
+    ctx.fillRect(-player.size/3, player.size/2 * 0.9 - player.size/6, player.size * 0.6, player.size/6);
+    
+    // Wing tips
+    ctx.fillStyle = "#7be495";
+    ctx.fillRect(player.size/4, -player.size/2 * 0.9, player.size/8, player.size/6);
+    ctx.fillRect(player.size/4, player.size/2 * 0.9 - player.size/6, player.size/8, player.size/6);
+    
+    // Cockpit/center detail
+    ctx.fillStyle = "#ffffff";
+    ctx.shadowBlur = 15;
+    ctx.fillRect(-player.size/6, -player.size/8, player.size/3, player.size/4);
+    
+    // Engine exhausts (enhanced when moving)
+    if (isMoving) {
+      ctx.fillStyle = "#ff6b35";
+      ctx.shadowColor = "#ff4500";
+      ctx.shadowBlur = 30;
+      // Multiple engine ports
+      ctx.fillRect(-player.size/2 * 1.2, -player.size/6, player.size/4, player.size/10);
+      ctx.fillRect(-player.size/2 * 1.2, player.size/6 - player.size/10, player.size/4, player.size/10);
+      // Center engine
+      ctx.fillRect(-player.size/2 * 1.1, -player.size/12, player.size/5, player.size/6);
+    }
+    
     ctx.shadowBlur = 0;
+    ctx.restore();
   }
 
   function drawStars() {
@@ -546,12 +669,36 @@
   });
 
   function handleKeyboard() {
-    player.vx = 0;
-    player.vy = 0;
-    if (keys['w'] || keys['arrowup']) player.vy = -player.speed;
-    if (keys['s'] || keys['arrowdown']) player.vy = player.speed;
-    if (keys['a'] || keys['arrowleft']) player.vx = -player.speed;
-    if (keys['d'] || keys['arrowright']) player.vx = player.speed;
+    const acceleration = 0.3;
+    const maxSpeed = player.speed;
+    const friction = 0.85;
+    
+    let targetVx = player.vx;
+    let targetVy = player.vy;
+    
+    if (keys['w'] || keys['arrowup']) targetVy -= acceleration;
+    if (keys['s'] || keys['arrowdown']) targetVy += acceleration;
+    if (keys['a'] || keys['arrowleft']) targetVx -= acceleration;
+    if (keys['d'] || keys['arrowright']) targetVx += acceleration;
+    
+    // Apply acceleration
+    player.vx = targetVx;
+    player.vy = targetVy;
+    
+    // Limit speed
+    const currentSpeed = Math.hypot(player.vx, player.vy);
+    if (currentSpeed > maxSpeed) {
+      player.vx = (player.vx / currentSpeed) * maxSpeed;
+      player.vy = (player.vy / currentSpeed) * maxSpeed;
+    }
+    
+    // Apply friction when no keys are pressed
+    if (!keys['w'] && !keys['s'] && !keys['arrowup'] && !keys['arrowdown']) {
+      player.vy *= friction;
+    }
+    if (!keys['a'] && !keys['d'] && !keys['arrowleft'] && !keys['arrowright']) {
+      player.vx *= friction;
+    }
   }
 
   // Joystick (mobile)
