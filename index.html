@@ -219,7 +219,7 @@
 <div id="hud">
   <div id="score">Score: 0</div>
   <div id="time">Time: 30</div>
-  <div id="level">Level: 1</div>
+  <div id="level">Level: 1 ×1</div>
 </div>
 
 <button id="muteBtn" title="Toggle Mute">🔊</button>
@@ -253,6 +253,7 @@
 
 <script>
 (() => {
+  // DOM refs
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
   const scoreDisplay = document.getElementById('score');
@@ -270,27 +271,28 @@
   const joystickBase = document.getElementById('joystickBase');
   const joystickStick = document.getElementById('joystickStick');
 
+  // Audio
   let audioContext = null;
   let bgMusic = null;
   let isMuted = false;
 
   function setupAudio() {
+    // create audioContext for sound effects
     if (!audioContext) {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (!bgMusic) {
       bgMusic = new Audio("https://cdn.jsdelivr.net/gh/jshawl/catch-the-star-assets/spacey-arcade-loop.mp3");
       bgMusic.loop = true;
       bgMusic.volume = 0.3;
-      bgMusic.play();
+      bgMusic.muted = isMuted;
+      // attempt play - will succeed after user gesture (start button)
+      const p = bgMusic.play();
+      if (p && p.catch) p.catch(() => { /* autoplay may be blocked until gesture, OK */ });
     }
   }
 
-  muteBtn.onclick = () => {
-    if (!bgMusic) return;
-    isMuted = !isMuted;
-    bgMusic.muted = isMuted;
-    muteBtn.textContent = isMuted ? '🔇' : '🔊';
-  };
-
+  // Colors & player
   const colors = {
     gold: "#ffdd57",
     blue: "#57ddff",
@@ -299,21 +301,13 @@
     obstacle: "#ff4444"
   };
 
-  const player = {
-    size: 28,
-    x: 0,
-    y: 0,
-    speed: 5,
-    vx: 0,
-    vy: 0,
-    trail: []
-  };
+  const player = { size: 28, x: 0, y: 0, speed: 5, vx: 0, vy: 0, trail: [] };
 
+  // Game state
   let keys = {};
   let stars = [];
   let obstacles = [];
   let particles = [];
-
   const bgStarsLayers = [
     { count: 100, speed: 0.2, size: 1, stars: [] },
     { count: 60, speed: 0.4, size: 1.5, stars: [] },
@@ -324,25 +318,35 @@
   let timeLeft = 30;
   let level = 1;
   let gameStarted = false;
+  let timerInterval = null;
 
-  // Utility funcs
-  function randomRange(min, max) {
-    return Math.random() * (max - min) + min;
+  // Multiplier system
+  let multiplier = 1;
+  let multiplierTimer = 0;
+  const multiplierDuration = 3000; // ms
+
+  // Screen shake
+  let shakeTime = 0;
+  let shakeIntensity = 0;
+  function triggerShake(intensity, duration) {
+    shakeIntensity = intensity;
+    shakeTime = duration;
   }
-  function clamp(num, min, max) {
-    return Math.min(Math.max(num, min), max);
-  }
-  function distance(x1,y1,x2,y2) {
-    return Math.hypot(x2 - x1, y2 - y1);
-  }
+
+  // Utils
+  function randomRange(min, max) { return Math.random() * (max - min) + min; }
+  function clamp(num, min, max) { return Math.min(Math.max(num, min), max); }
+  function distance(x1,y1,x2,y2) { return Math.hypot(x2-x1, y2-y1); }
   function rectIntersect(x1,y1,w1,h1, x2,y2,w2,h2) {
-    return !(x2 > x1 + w1 || 
-             x2 + w2 < x1 || 
-             y2 > y1 + h1 ||
-             y2 + h2 < y1);
+    return !(x2 > x1 + w1 || x2 + w2 < x1 || y2 > y1 + h1 || y2 + h2 < y1);
+  }
+  function hexToRgb(hex) {
+    const h = hex.replace('#','');
+    const bigint = parseInt(h, 16);
+    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
   }
 
-  // Player reset
+  // Player helpers
   function resetPlayer() {
     player.x = canvas.width / 2 - player.size / 2;
     player.y = canvas.height / 2 - player.size / 2;
@@ -351,84 +355,16 @@
     player.trail = [];
   }
 
-  // Init BG stars
-  function initBgStars() {
-    bgStarsLayers.forEach(layer => {
-      layer.stars = [];
-      for(let i=0; i<layer.count; i++) {
-        layer.stars.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          size: layer.size,
-          speed: layer.speed
-        });
-      }
-    });
+  function updatePlayerTrail() {
+    player.trail.push({ x: player.x + player.size/2, y: player.y + player.size/2, alpha: 1 });
+    if (player.trail.length > 20) player.trail.shift();
+    player.trail.forEach(t => t.alpha -= 0.05);
+    player.trail = player.trail.filter(t => t.alpha > 0);
   }
 
-  // Spawn star with balanced types
-  function spawnStar() {
-    const rand = Math.random();
-    let type;
-    if (rand < 0.4) type = "gold";
-    else if (rand < 0.8) type = "blue";
-    else type = "red";
-
-    const size = 18;
-    stars.push({
-      x: randomRange(0, canvas.width - size),
-      y: randomRange(0, canvas.height - size),
-      size,
-      type,
-      vx: randomRange(-0.7, 0.7),
-      vy: randomRange(-0.7, 0.7),
-      baseGlow: 0
-    });
-  }
-
-  // Spawn obstacle
-  function spawnObstacle() {
-    const size = 36;
-    obstacles.push({
-      x: randomRange(0, canvas.width - size),
-      y: randomRange(0, canvas.height - size),
-      size,
-      vx: randomRange(-0.9, 0.9),
-      vy: randomRange(-0.9, 0.9)
-    });
-  }
-
-  // Audio beep on collect
-  function playCollectSound(pitch = 1) {
-    if (!audioContext || isMuted) return;
-    const osc = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    osc.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(400 * pitch, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.12, audioContext.currentTime);
-    osc.start();
-    osc.stop(audioContext.currentTime + 0.1);
-  }
-
-  // Audio beep on obstacle hit (different)
-  function playObstacleSound() {
-    if (!audioContext || isMuted) return;
-    const osc = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    osc.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    osc.type = 'square';
-    osc.frequency.setValueAtTime(120, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
-    osc.start();
-    osc.stop(audioContext.currentTime + 0.2);
-  }
-
-  // Particle creation
-  function createParticles(x, y, color, count=15) {
-    for (let i=0; i<count; i++) {
+  // Particles
+  function createParticles(x, y, color, count = 15) {
+    for (let i = 0; i < count; i++) {
       particles.push({
         x, y,
         dx: (Math.random() - 0.5) * 3,
@@ -436,12 +372,10 @@
         life: 45,
         color,
         alpha: 1,
-        decay: 0.025
+        decay: 0.025 + Math.random() * 0.02
       });
     }
   }
-
-  // Update particles
   function updateParticles() {
     particles.forEach(p => {
       p.x += p.dx;
@@ -452,39 +386,94 @@
     particles = particles.filter(p => p.life > 0 && p.alpha > 0);
   }
 
-  // Update player trail
-  function updatePlayerTrail() {
-    player.trail.push({ x: player.x + player.size/2, y: player.y + player.size/2, alpha: 1 });
-    if (player.trail.length > 20) player.trail.shift();
-    player.trail.forEach(t => t.alpha -= 0.05);
-    player.trail = player.trail.filter(t => t.alpha > 0);
+  // Audio effects (oscillators) for collect/hit
+  function playCollectSound(pitch = 1) {
+    if (!audioContext || isMuted) return;
+    if (audioContext.state === 'suspended') audioContext.resume();
+    const osc = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(400 * pitch, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.12, audioContext.currentTime);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.1);
+  }
+  function playObstacleSound() {
+    if (!audioContext || isMuted) return;
+    if (audioContext.state === 'suspended') audioContext.resume();
+    const osc = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(120, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.15, audioContext.currentTime);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.18);
   }
 
-  // Draw player with trail and glow
+  // Spawn functions (balanced)
+  function spawnStar() {
+    const rand = Math.random();
+    let type;
+    if (rand < 0.5) type = "gold";
+    else if (rand < 0.85) type = "blue";
+    else type = "red";
+
+    const size = 18;
+    stars.push({
+      x: randomRange(0, canvas.width - size),
+      y: randomRange(0, canvas.height - size),
+      size,
+      type,
+      vx: randomRange(-0.6, 0.6),
+      vy: randomRange(-0.6, 0.6),
+      baseGlow: randomRange(0, Math.PI * 2)
+    });
+  }
+
+  function spawnObstacle() {
+    const size = 36;
+    obstacles.push({
+      x: randomRange(0, canvas.width - size),
+      y: randomRange(0, canvas.height - size),
+      size,
+      vx: randomRange(-0.8, 0.8),
+      vy: randomRange(-0.8, 0.8)
+    });
+  }
+
+  // Drawing helpers
   function drawPlayer() {
+    // trail
+    const prgb = hexToRgb(colors.player);
     player.trail.forEach(t => {
       const radius = player.size / 2;
       ctx.beginPath();
-      ctx.fillStyle = `rgba(123, 228, 149, ${t.alpha})`;
-      ctx.shadowColor = '#7be495';
+      ctx.fillStyle = 'rgba(' + prgb.join(',') + ',' + t.alpha + ')';
+      ctx.shadowColor = colors.player;
       ctx.shadowBlur = 20 * t.alpha;
       ctx.arc(t.x, t.y, radius, 0, Math.PI * 2);
       ctx.fill();
+      ctx.shadowBlur = 0;
     });
 
+    // player body
     ctx.fillStyle = colors.player;
     ctx.shadowColor = "#00ffcc";
-    ctx.shadowBlur = 18;
+    // increase glow when multiplier active
+    const glowFactor = 18 * (1 + Math.min(multiplier - 1, 6) * 0.12);
+    ctx.shadowBlur = glowFactor;
     ctx.fillRect(player.x, player.y, player.size, player.size);
     ctx.shadowBlur = 0;
   }
 
-  // Draw stars with glow
   function drawStars() {
     stars.forEach(star => {
-      star.baseGlow += 0.05;
+      star.baseGlow += 0.06;
       const glow = (Math.sin(star.baseGlow) + 1) / 2;
-
       ctx.beginPath();
       ctx.fillStyle = colors[star.type];
       ctx.shadowColor = colors[star.type];
@@ -495,7 +484,6 @@
     });
   }
 
-  // Draw obstacles with spikes
   function drawObstacleWithSpikes(obs) {
     const spikeCount = 8;
     const spikeLength = 9;
@@ -508,9 +496,8 @@
     ctx.fillRect(obs.x, obs.y, obs.size, obs.size);
     ctx.shadowBlur = 0;
 
-    ctx.fillStyle = colors.obstacle;
     ctx.beginPath();
-    for (let i=0; i<spikeCount; i++) {
+    for (let i = 0; i < spikeCount; i++) {
       const angle = (i / spikeCount) * Math.PI * 2;
       const x1 = centerX + Math.cos(angle) * (obs.size / 2);
       const y1 = centerY + Math.sin(angle) * (obs.size / 2);
@@ -524,30 +511,21 @@
     ctx.stroke();
   }
 
-  // Draw obstacles
   function drawObstacles() {
-    obstacles.forEach(obs => {
-      drawObstacleWithSpikes(obs);
-    });
+    obstacles.forEach(obs => drawObstacleWithSpikes(obs));
   }
 
-  // Draw particles
   function drawParticles() {
     particles.forEach(p => {
       ctx.beginPath();
-      ctx.fillStyle = `rgba(${hexToRgb(colors.player).join()},${p.alpha})`;
+      const rgb = hexToRgb(p.color);
+      ctx.fillStyle = 'rgba(' + rgb.join(',') + ',' + p.alpha + ')';
       ctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
       ctx.fill();
     });
   }
 
-  // Hex to RGB helper
-  function hexToRgb(hex) {
-    const bigint = parseInt(hex.replace('#',''), 16);
-    return [(bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255];
-  }
-
-  // Handle keyboard input
+  // Input handlers
   window.addEventListener('keydown', e => {
     if (gameStarted && controlModeSelect.value === "pc") {
       const k = e.key.toLowerCase();
@@ -567,7 +545,16 @@
     }
   });
 
-  // Handle joystick (mobile)
+  function handleKeyboard() {
+    player.vx = 0;
+    player.vy = 0;
+    if (keys['w'] || keys['arrowup']) player.vy = -player.speed;
+    if (keys['s'] || keys['arrowdown']) player.vy = player.speed;
+    if (keys['a'] || keys['arrowleft']) player.vx = -player.speed;
+    if (keys['d'] || keys['arrowright']) player.vx = player.speed;
+  }
+
+  // Joystick (mobile)
   let joystickTouchId = null;
   let joystickStart = { x: 0, y: 0 };
 
@@ -576,9 +563,11 @@
   joystickBase.addEventListener('touchstart', e => {
     e.preventDefault();
     if (joystickTouchId === null) {
-      joystickTouchId = e.changedTouches[0].identifier;
-      joystickStart.x = e.changedTouches[0].clientX;
-      joystickStart.y = e.changedTouches[0].clientY;
+      const t = e.changedTouches[0];
+      joystickTouchId = t.identifier;
+      joystickStart.x = t.clientX;
+      joystickStart.y = t.clientY;
+      // position base where touched
       joystickBase.style.left = (joystickStart.x - 50) + 'px';
       joystickBase.style.bottom = (window.innerHeight - joystickStart.y - 50) + 'px';
       joystickBase.style.display = 'block';
@@ -597,8 +586,7 @@
           let angle = Math.atan2(dy, dx);
           dx = dist * Math.cos(angle);
           dy = dist * Math.sin(angle);
-          joystickStick.style.transform = `translate(${dx}px, ${dy}px)`;
-          // Set player velocity normalized for smooth control
+          joystickStick.style.transform = 'translate(' + dx + 'px, ' + dy + 'px)';
           player.vx = (dx / 40) * player.speed;
           player.vy = (dy / 40) * player.speed;
         }
@@ -619,24 +607,12 @@
     }
   }, {passive:false});
 
-  // Handle PC keyboard controls
-  function handleKeyboard() {
-    player.vx = 0;
-    player.vy = 0;
-    if (keys['w'] || keys['arrowup']) player.vy = -player.speed;
-    if (keys['s'] || keys['arrowdown']) player.vy = player.speed;
-    if (keys['a'] || keys['arrowleft']) player.vx = -player.speed;
-    if (keys['d'] || keys['arrowright']) player.vx = player.speed;
-  }
-
-  // Update game state
+  // Game update loop
   function update() {
     if (!gameStarted) return;
 
-    // Move player
-    if (controlModeSelect.value === "pc") {
-      handleKeyboard();
-    }
+    // Player movement
+    if (controlModeSelect.value === "pc") handleKeyboard();
     player.x += player.vx;
     player.y += player.vy;
     player.x = clamp(player.x, 0, canvas.width - player.size);
@@ -648,7 +624,6 @@
     stars.forEach(star => {
       star.x += star.vx;
       star.y += star.vy;
-      // Bounce off walls
       if (star.x <= 0 || star.x + star.size >= canvas.width) star.vx *= -1;
       if (star.y <= 0 || star.y + star.size >= canvas.height) star.vy *= -1;
     });
@@ -661,26 +636,32 @@
       if (obs.y <= 0 || obs.y + obs.size >= canvas.height) obs.vy *= -1;
     });
 
-    // Check collisions with stars
+    // Check collisions with stars (apply multiplier)
     stars = stars.filter(star => {
       const collided = rectIntersect(player.x, player.y, player.size, player.size,
         star.x, star.y, star.size, star.size);
       if (collided) {
         if (star.type === "gold") {
-          score += 1;
+          score += 1 * multiplier;
+          multiplier += 1; // gold increases multiplier by 1
+          multiplierTimer = Date.now();
           playCollectSound(1.5);
           createParticles(star.x + star.size / 2, star.y + star.size / 2, colors.gold);
         } else if (star.type === "blue") {
-          score += 2;
+          score += 2 * multiplier;
+          multiplier += 2; // blue gives a bigger multiplier bump
+          multiplierTimer = Date.now();
           playCollectSound(2);
           createParticles(star.x + star.size / 2, star.y + star.size / 2, colors.blue);
         } else if (star.type === "red") {
-          score -= 1;
+          // penalty scales with current multiplier
+          score = Math.max(0, score - (1 * multiplier));
+          multiplier = 1;
           playObstacleSound();
+          triggerShake(10, 18);
           createParticles(star.x + star.size / 2, star.y + star.size / 2, colors.red);
-          if (score < 0) score = 0;
         }
-        return false; // remove star
+        return false;
       }
       return true;
     });
@@ -689,44 +670,58 @@
     obstacles.forEach(obs => {
       if (rectIntersect(player.x, player.y, player.size, player.size,
         obs.x, obs.y, obs.size, obs.size)) {
-        score -= 1;
+        score = Math.max(0, score - (1 * multiplier)); // penalty scales with multiplier
+        multiplier = 1;
         playObstacleSound();
+        triggerShake(12, 20);
         createParticles(player.x + player.size / 2, player.y + player.size / 2, colors.red, 25);
-        if (score < 0) score = 0;
-        // Knockback player a bit
+        // Knockback
         player.x -= player.vx * 5;
         player.y -= player.vy * 5;
       }
     });
 
+    // Multiplier timeout
+    if (multiplier > 1 && Date.now() - multiplierTimer > multiplierDuration) {
+      multiplier = 1;
+    }
+
     updateParticles();
 
-    // Spawn stars based on level and chance
-    if (Math.random() < 0.4 + (level * 0.03)) spawnStar();
+    // Balanced spawn rates
+    if (stars.length < 8 && Math.random() < 0.15 + (level * 0.015)) spawnStar();
+    if (obstacles.length < 2 + Math.floor(level / 3) && Math.random() < 0.004 + level * 0.0005) {
+      spawnObstacle();
+    }
 
-    // Spawn obstacles capped at 3 max and less frequent
-    if (obstacles.length < 3 && Math.random() < 0.008) spawnObstacle();
-
-    // Update HUD
+    // HUD update
     scoreDisplay.textContent = "Score: " + score;
     timeDisplay.textContent = "Time: " + timeLeft;
-    levelDisplay.textContent = "Level: " + level;
+    levelDisplay.textContent = "Level: " + level + " ×" + multiplier;
   }
 
-  // Draw everything
+  // Drawing everything (with shake)
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // Draw BG stars layers
+    ctx.save();
+    if (shakeTime > 0) {
+      const dx = (Math.random() - 0.5) * shakeIntensity;
+      const dy = (Math.random() - 0.5) * shakeIntensity;
+      ctx.translate(dx, dy);
+      shakeTime--;
+    }
+
+    // Background layers
     bgStarsLayers.forEach(layer => {
-      layer.stars.forEach(star => {
-        star.x -= layer.speed;
-        if (star.x < 0) star.x = canvas.width;
+      layer.stars.forEach(st => {
+        st.x -= layer.speed;
+        if (st.x < -10) st.x = canvas.width + 10;
         ctx.fillStyle = "white";
         ctx.shadowColor = "white";
         ctx.shadowBlur = 4;
         ctx.beginPath();
-        ctx.arc(star.x, star.y, layer.size, 0, Math.PI * 2);
+        ctx.arc(st.x, st.y, layer.size, 0, Math.PI * 2);
         ctx.fill();
         ctx.shadowBlur = 0;
       });
@@ -736,6 +731,8 @@
     drawObstacles();
     drawPlayer();
     drawParticles();
+
+    ctx.restore();
   }
 
   // Game loop
@@ -745,7 +742,21 @@
     if (gameStarted) requestAnimationFrame(gameLoop);
   }
 
-  // Resize canvas
+  // Resize & init background stars
+  function initBgStars() {
+    bgStarsLayers.forEach(layer => {
+      layer.stars = [];
+      for (let i = 0; i < layer.count; i++) {
+        layer.stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: layer.size,
+          speed: layer.speed
+        });
+      }
+    });
+  }
+
   function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
@@ -754,9 +765,9 @@
   }
   window.addEventListener('resize', resize);
 
-  // Timer countdown
-  let timerInterval = null;
+  // Timer
   function startTimer() {
+    if (timerInterval) clearInterval(timerInterval);
     timerInterval = setInterval(() => {
       timeLeft--;
       if (timeLeft <= 0) {
@@ -768,25 +779,28 @@
   }
   function stopTimer() {
     if (timerInterval) clearInterval(timerInterval);
+    timerInterval = null;
   }
 
-  // Leaderboard data
+  // Leaderboard (in-memory)
   let leaderboard = [];
-
-  function updateLeaderboard(name, score) {
-    leaderboard.push({name, score});
+  function updateLeaderboard(name, sc) {
+    if (!name) name = "Player";
+    leaderboard.push({name, score: sc});
     leaderboard.sort((a,b) => b.score - a.score);
-    if (leaderboard.length > 5) leaderboard.pop();
+    if (leaderboard.length > 5) leaderboard = leaderboard.slice(0,5);
     renderLeaderboard();
   }
-
   function renderLeaderboard() {
     leaderboardList.innerHTML = '';
     leaderboard.forEach(entry => {
       const li = document.createElement('li');
-      li.textContent = `${entry.name}: ${entry.score}`;
+      li.textContent = entry.name + ': ' + entry.score;
       leaderboardList.appendChild(li);
     });
+  }
+  function updateLeaderboardDisplayVisibility(show) {
+    document.getElementById('leaderboard').style.display = show ? 'block' : 'none';
   }
 
   // Start game
@@ -803,6 +817,8 @@
     obstacles = [];
     particles = [];
     keys = {};
+    multiplier = 1;
+    multiplierTimer = 0;
     resetPlayer();
     updateLeaderboardDisplayVisibility(true);
     startOverlay.style.display = 'none';
@@ -821,38 +837,26 @@
   function endGame() {
     gameStarted = false;
     stopTimer();
-    finalScoreDisplay.textContent = `${playerNameInput.value.trim()}, your score: ${score}`;
+    finalScoreDisplay.textContent = playerNameInput.value.trim() + ', your score: ' + score;
     updateLeaderboard(playerNameInput.value.trim(), score);
     gameOverOverlay.style.display = 'flex';
     joystickBase.style.display = 'none';
   }
 
-  // Restart game
+  // Restart -> bring back start overlay
   function restartGame() {
     startOverlay.style.display = 'flex';
     gameOverOverlay.style.display = 'none';
   }
 
-  function updateLeaderboardDisplayVisibility(show) {
-    document.getElementById('leaderboard').style.display = show ? 'block' : 'none';
-  }
+  // Event listeners wiring
+  startBtn.onclick = startGame;
+  restartBtn.onclick = restartGame;
 
-  // Init
-  resize();
-  updateLeaderboardDisplayVisibility(true);
-
-  // Event listeners
-  startBtn.onclick = () => startGame();
-  restartBtn.onclick = () => restartGame();
-
-  // Keyboard Enter key starts game if on input
   playerNameInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      startGame();
-    }
+    if (e.key === 'Enter') startGame();
   });
 
-  // Control mode change shows/hides joystick
   controlModeSelect.addEventListener('change', () => {
     if (controlModeSelect.value === 'mobile' && gameStarted) {
       joystickBase.style.display = 'block';
@@ -860,6 +864,17 @@
       joystickBase.style.display = 'none';
     }
   });
+
+  muteBtn.onclick = () => {
+    isMuted = !isMuted;
+    if (bgMusic) bgMusic.muted = isMuted;
+    muteBtn.textContent = isMuted ? '🔇' : '🔊';
+  };
+
+  // Initial layout
+  resize();
+  updateLeaderboardDisplayVisibility(true);
+  renderLeaderboard();
 
 })();
 </script>
