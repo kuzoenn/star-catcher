@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>Catch the Star - Neon Space Edition- Kuzo </title>
+<style>
+  html, body {
+    margin: 0; padding: 0; overflow: hidden;
+    background: #0b1221;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    user-select: none;
+    height: 100%;
+    color: #7be495;
+  }
+  #gameCanvas {
+    display: block;
+    margin: 0 auto;
+    background: transparent;
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 1;
+  }
+  #hud {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 25px;
+    font-size: 22px;
+    font-weight: 700;
+    text-shadow: 0 0 6px #7be495cc;
+    z-index: 20;
+    user-select: none;
+  }
+  #muteBtn {
+    position: fixed;
+    top: 12px;
+    right: 20px;
+    background: #192934;
+    border: none;
+    color: #7be495;
+    font-weight: bold;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-shadow: 0 0 8px #7be495cc;
+    z-index: 20;
+    user-select: none;
+    transition: background 0.3s;
+  }
+  #muteBtn:hover {
+    background: #4caf50;
+  }
+  #bottomCredit {
+    position: fixed;
+    bottom: 8px;
+    right: 12px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #7be495cc;
+    user-select: none;
+    z-index: 20;
+    text-shadow: 0 0 8px #7be495cc;
+  }
+  #startOverlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(11, 18, 33, 0.9);
+    color: #7be495;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 26px;
+    font-weight: 700;
+    user-select: none;
+    z-index: 30;
+  }
+  #startBtn {
+    margin-top: 20px;
+    font-size: 22px;
+    background: linear-gradient(45deg, #7be495, #4caf50);
+    border: none;
+    padding: 15px 40px;
+    border-radius: 10px;
+    color: #0b1221;
+    cursor: pointer;
+    box-shadow: 0 0 15px #4caf50aa;
+    font-weight: 800;
+    user-select: none;
+    transition: background 0.3s;
+  }
+  #startBtn:hover {
+    background: linear-gradient(45deg, #4caf50, #7be495);
+  }
+  #gameOverOverlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(11, 18, 33, 0.95);
+    color: #7be495;
+    display: none;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    font-weight: 700;
+    user-select: none;
+    z-index: 35;
+  }
+  #restartBtn {
+    margin-top: 25px;
+    font-size: 24px;
+    background: linear-gradient(45deg, #7be495, #4caf50);
+    border: none;
+    padding: 14px 44px;
+    border-radius: 10px;
+    color: #0b1221;
+    cursor: pointer;
+    box-shadow: 0 0 18px #4caf50cc;
+    font-weight: 800;
+    user-select: none;
+    transition: background 0.3s;
+  }
+  #restartBtn:hover {
+    background: linear-gradient(45deg, #4caf50, #7be495);
+  }
+</style>
+</head>
+<body>
+
+<canvas id="gameCanvas"></canvas>
+
+<div id="hud">
+  <div id="score">Score: 0</div>
+  <div id="time">Time: 30</div>
+  <div id="level">Level: 1</div>
+  <div id="combo">Combo: x1</div>
+</div>
+
+<button id="muteBtn" title="Toggle Mute">🔊</button>
+
+<div id="bottomCredit">by Anar &amp; Ermuun</div>
+
+<div id="startOverlay">
+  Catch the Star<br>
+  <button id="startBtn">Start Game</button>
+</div>
+
+<div id="gameOverOverlay">
+  Game Over!<br>
+  <div id="finalScore" style="margin-top:12px;"></div>
+  <button id="restartBtn">Restart</button>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const scoreDisplay = document.getElementById('score');
+  const timeDisplay = document.getElementById('time');
+  const levelDisplay = document.getElementById('level');
+  const comboDisplay = document.getElementById('combo');
+  const muteBtn = document.getElementById('muteBtn');
+  const startOverlay = document.getElementById('startOverlay');
+  const startBtn = document.getElementById('startBtn');
+  const gameOverOverlay = document.getElementById('gameOverOverlay');
+  const finalScoreDisplay = document.getElementById('finalScore');
+  const restartBtn = document.getElementById('restartBtn');
+
+  function resizeCanvas() {
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  let audioContext = null;
+  let bgMusic = null;
+  let isMuted = false;
+
+  function setupAudio() {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      bgMusic = new Audio("https://cdn.jsdelivr.net/gh/jshawl/catch-the-star-assets/spacey-arcade-loop.mp3");
+      bgMusic.loop = true;
+      bgMusic.volume = 0.3;
+      bgMusic.play();
+    }
+  }
+  muteBtn.onclick = () => {
+    if (!bgMusic) return;
+    isMuted = !isMuted;
+    bgMusic.muted = isMuted;
+    muteBtn.textContent = isMuted ? '🔇' : '🔊';
+  };
+
+  const colors = {
+    gold: "#ffdd57",
+    blue: "#57ddff",
+    red: "#ff5757",
+    player: "#7be495",
+    obstacle: "#ff4444"
+  };
+
+  const player = {
+    size: 28,
+    x: 0,
+    y: 0,
+    speed: 5,
+    vx: 0,
+    vy: 0,
+    trail: []
+  };
+
+  // Track keys, support arrows + WASD
+  const keys = {};
+
+  const stars = [];
+  const obstacles = [];
+  let particles = [];
+
+  const bgStarsLayers = [
+    { count: 100, speed: 0.2, size: 1, stars: [] },
+    { count: 60, speed: 0.4, size: 1.5, stars: [] },
+    { count: 40, speed: 0.7, size: 2, stars: [] }
+  ];
+
+  let score = 0;
+  let timeLeft = 30;
+  let level = 1;
+  let combo = 1;
+  let comboTimer = 0;
+  const comboResetTime = 1800; // ms
+
+  let gameStarted = false;
+
+  function randomRange(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+  function clamp(num, min, max) {
+    return Math.min(Math.max(num, min), max);
+  }
+  function distance(x1,y1,x2,y2) {
+    return Math.hypot(x2 - x1, y2 - y1);
+  }
+
+  function resetPlayer() {
+    player.x = canvas.width / 2 - player.size / 2;
+    player.y = canvas.height / 2 - player.size / 2;
+    player.vx = 0;
+    player.vy = 0;
+    player.trail = [];
+  }
+
+  function initBgStars() {
+    bgStarsLayers.forEach(layer => {
+      layer.stars = [];
+      for(let i=0; i<layer.count; i++) {
+        layer.stars.push({
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: layer.size,
+          speed: layer.speed
+        });
+      }
+    });
+  }
+
+  function spawnStar() {
+    const types = ["gold", "blue", "red"];
+    const type = types[Math.floor(Math.random() * types.length)];
+    const size = 18;
+    stars.push({
+      x: randomRange(0, canvas.width - size),
+      y: randomRange(0, canvas.height - size),
+      size,
+      type,
+      vx: randomRange(-0.4, 0.4),
+      vy: randomRange(-0.4, 0.4),
+      baseGlow: 0
+    });
+  }
+
+  function spawnObstacle() {
+    const size = 36;
+    obstacles.push({
+      x: randomRange(0, canvas.width - size),
+      y: randomRange(0, canvas.height - size),
+      size,
+      vx: randomRange(-0.9, 0.9),
+      vy: randomRange(-0.9, 0.9)
+    });
+  }
+
+  function playBeep(freq) {
+    if (!audioContext || isMuted) return;
+    const osc = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    osc.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(freq, audioContext.currentTime);
+    gainNode.gain.setValueAtTime(0.12, audioContext.currentTime);
+    osc.start();
+    osc.stop(audioContext.currentTime + 0.1);
+  }
+
+  function createParticles(x, y, color, count=15) {
+    for (let i=0; i<count; i++) {
+      particles.push({
+        x, y,
+        dx: (Math.random() - 0.5) * 3,
+        dy: (Math.random() - 0.5) * 3,
+        life: 45,
+        color,
+        alpha: 1,
+        decay: 0.025
+      });
+    }
+  }
+
+  function updateParticles() {
+    particles.forEach(p => {
+      p.x += p.dx;
+      p.y += p.dy;
+      p.alpha -= p.decay;
+      p.life--;
+    });
+    particles = particles.filter(p => p.life > 0 && p.alpha > 0);
+  }
+
+  function updatePlayerTrail() {
+    player.trail.push({ x: player.x + player.size/2, y: player.y + player.size/2, alpha: 1 });
+    if (player.trail.length > 20) player.trail.shift();
+    player.trail.forEach(t => t.alpha -= 0.05);
+    player.trail = player.trail.filter(t => t.alpha > 0);
+  }
+
+  function drawPlayer() {
+    player.trail.forEach((t, i) => {
+      const radius = player.size / 2;
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(123, 228, 149, ${t.alpha})`;
+      ctx.shadowColor = '#7be495';
+      ctx.shadowBlur = 20 * t.alpha;
+      ctx.arc(t.x, t.y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    ctx.fillStyle = colors.player;
+    ctx.shadowColor = "#00ffcc";
+    ctx.shadowBlur = 18;
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+    ctx.shadowBlur = 0;
+  }
+
+  function drawStars() {
+    stars.forEach(star => {
+      star.baseGlow += 0.05;
+      const glow = (Math.sin(star.baseGlow) + 1) / 2;
+
+      ctx.beginPath();
+      ctx.fillStyle = colors[star.type];
+      ctx.shadowColor = colors[star.type];
+      ctx.shadowBlur = 12 + glow * 8;
+      ctx.arc(star.x + star.size / 2, star.y + star.size / 2, star.size / 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
+  }
+
+  function drawObstacleWithSpikes(obs) {
+    const spikeCount = 8;
+    const spikeLength = 9;
+    const centerX = obs.x + obs.size / 2;
+    const centerY = obs.y + obs.size / 2;
+
+    ctx.fillStyle = colors.obstacle;
+    ctx.shadowColor = "#ff0000";
+    ctx.shadowBlur = 22;
+    ctx.fillRect(obs.x, obs.y, obs.size, obs.size);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = "#ff0000";
+    ctx.strokeStyle = "#aa0000";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < spikeCount; i++) {
+      const angle = (Math.PI * 2 / spikeCount) * i;
+      const startX = centerX + Math.cos(angle) * (obs.size / 2);
+      const startY = centerY + Math.sin(angle) * (obs.size / 2);
+      const endX = centerX + Math.cos(angle) * (obs.size / 2 + spikeLength);
+      const endY = centerY + Math.sin(angle) * (obs.size / 2 + spikeLength);
+
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(endX, endY);
+      ctx.lineTo(
+        centerX + Math.cos(angle + 0.1) * (obs.size / 2 + spikeLength / 2),
+        centerY + Math.sin(angle + 0.1) * (obs.size / 2 + spikeLength / 2)
+      );
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  function drawBgStars() {
+    bgStarsLayers.forEach(layer => {
+      ctx.fillStyle = "#99ccff88";
+      layer.stars.forEach(s => {
+        ctx.beginPath();
+        ctx.shadowColor = "#99ccffdd";
+        ctx.shadowBlur = 8;
+        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      });
+    });
+  }
+
+  function hexToRgb(hex) {
+    hex = hex.replace(/^#/, '');
+    if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+    const bigint = parseInt(hex, 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return `${r},${g},${b}`;
+  }
+
+  function drawParticles() {
+    particles.forEach(p => {
+      ctx.fillStyle = `rgba(${hexToRgb(p.color)},${p.alpha})`;
+      ctx.fillRect(p.x, p.y, 3, 3);
+    });
+  }
+
+  function update(delta) {
+    // Support arrows + WASD
+    let targetVx = 0;
+    let targetVy = 0;
+    if (keys['ArrowUp'] || keys['w'] || keys['W']) targetVy = -player.speed;
+    if (keys['ArrowDown'] || keys['s'] || keys['S']) targetVy = player.speed;
+    if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetVx = -player.speed;
+    if (keys['ArrowRight'] || keys['d'] || keys['D']) targetVx = player.speed;
+
+    player.vx += (targetVx - player.vx) * 0.3;
+    player.vy += (targetVy - player.vy) * 0.3;
+
+    player.x += player.vx;
+    player.y += player.vy;
+
+    player.x = clamp(player.x, 0, canvas.width - player.size);
+    player.y = clamp(player.y, 0, canvas.height - player.size);
+
+    bgStarsLayers.forEach(layer => {
+      layer.stars.forEach(s => {
+        s.y += layer.speed;
+        if (s.y > canvas.height) s.y = 0;
+      });
+    });
+
+    stars.forEach(star => {
+      star.x += star.vx;
+      star.y += star.vy;
+      if (star.x < 0) star.x = canvas.width - star.size;
+      else if (star.x > canvas.width - star.size) star.x = 0;
+      if (star.y < 0) star.y = canvas.height - star.size;
+      else if (star.y > canvas.height - star.size) star.y = 0;
+    });
+
+    obstacles.forEach(obs => {
+      obs.x += obs.vx;
+      obs.y += obs.vy;
+      if (obs.x < 0 || obs.x > canvas.width - obs.size) obs.vx *= -1;
+      if (obs.y < 0 || obs.y > canvas.height - obs.size) obs.vy *= -1;
+    });
+
+    stars.forEach((star, index) => {
+      const dist = distance(player.x + player.size / 2, player.y + player.size / 2,
+                            star.x + star.size / 2, star.y + star.size / 2);
+      if (dist < (player.size + star.size) / 2) {
+        if (star.type === 'gold') {
+          score += 1 * combo;
+          playBeep(600);
+          createParticles(star.x + star.size/2, star.y + star.size/2, colors.gold);
+        } else if (star.type === 'blue') {
+          score += 2 * combo;
+          playBeep(800);
+          createParticles(star.x + star.size/2, star.y + star.size/2, colors.blue);
+        } else if (star.type === 'red') {
+          score = Math.max(0, score - 1 * combo);
+          playBeep(200);
+          createParticles(star.x + star.size/2, star.y + star.size/2, colors.red);
+          combo = 1;
+          comboTimer = 0;
+          comboDisplay.textContent = `Combo: x${combo}`;
+        }
+        stars.splice(index, 1);
+        scoreDisplay.textContent = `Score: ${score}`;
+        if (star.type !== 'red') {
+          combo++;
+          comboTimer = 0;
+          comboDisplay.textContent = `Combo: x${combo}`;
+        }
+      }
+    });
+
+    obstacles.forEach(obs => {
+      const dx = player.x - obs.x;
+      const dy = player.y - obs.y;
+      if (Math.abs(dx) < obs.size && Math.abs(dy) < obs.size) {
+        score = Math.max(0, score - 2 * combo);
+        playBeep(100);
+        scoreDisplay.textContent = `Score: ${score}`;
+        combo = 1;
+        comboTimer = 0;
+        comboDisplay.textContent = `Combo: x${combo}`;
+      }
+    });
+
+    comboTimer += delta;
+    if (comboTimer > comboResetTime) {
+      combo = 1;
+      comboDisplay.textContent = `Combo: x${combo}`;
+    }
+
+    updateParticles();
+    updatePlayerTrail();
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    drawBgStars();
+    drawStars();
+    obstacles.forEach(drawObstacleWithSpikes);
+    drawParticles();
+    drawPlayer();
+  }
+
+  let timerInterval = null;
+  let lastTime = 0;
+
+  function gameLoop(time=0) {
+    if (!gameStarted) return;
+    const delta = time - lastTime;
+    lastTime = time;
+    update(delta);
+    draw();
+    requestAnimationFrame(gameLoop);
+  }
+
+  function startGame() {
+    setupAudio();
+    score = 0;
+    timeLeft = 30;
+    level = 1;
+    combo = 1;
+    comboTimer = 0;
+    stars.length = 0;
+    obstacles.length = 0;
+    particles.length = 0;
+    resetPlayer();
+    scoreDisplay.textContent = `Score: ${score}`;
+    timeDisplay.textContent = `Time: ${timeLeft}`;
+    levelDisplay.textContent = `Level: ${level}`;
+    comboDisplay.textContent = `Combo: x${combo}`;
+    startOverlay.style.display = 'none';
+    gameOverOverlay.style.display = 'none';
+    gameStarted = true;
+    lastTime = performance.now();
+
+    initBgStars();
+
+    // Spawn initial stars and obstacles
+    for(let i=0; i<6; i++) spawnStar();
+    for(let i=0; i<4; i++) spawnObstacle();
+
+    if (timerInterval) clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      if (!gameStarted) {
+        clearInterval(timerInterval);
+        return;
+      }
+      timeLeft--;
+      timeDisplay.textContent = `Time: ${timeLeft}`;
+
+      // Level up every 10 seconds
+      if (timeLeft > 0 && timeLeft % 10 === 0 && timeLeft !== 30) {
+        level++;
+        levelDisplay.textContent = `Level: ${level}`;
+
+        // Spawn more obstacles and stars as level increases
+        for(let i=0; i<level + 2; i++) spawnObstacle();
+        for(let i=0; i<4 + level; i++) spawnStar();
+
+        // Increase player speed gradually (max 9)
+        player.speed = Math.min(9, player.speed + 0.5);
+      }
+
+      // Spawn stars more often every second
+      if (timeLeft > 0) {
+        const starsToSpawn = Math.min(3 + level, 8);
+        for(let i=0; i<starsToSpawn; i++) spawnStar();
+      }
+
+      if (timeLeft <= 0) {
+        gameStarted = false;
+        showGameOver();
+      }
+    }, 1000);
+
+    requestAnimationFrame(gameLoop);
+  }
+
+  function showGameOver() {
+    finalScoreDisplay.textContent = `Your Score: ${score}`;
+    gameOverOverlay.style.display = 'flex';
+  }
+
+  restartBtn.onclick = () => {
+    startGame();
+  };
+
+  window.addEventListener('keydown', e => {
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D'].includes(e.key)) {
+      keys[e.key] = true;
+      e.preventDefault();
+    }
+  });
+  window.addEventListener('keyup', e => {
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D'].includes(e.key)) {
+      keys[e.key] = false;
+      e.preventDefault();
+    }
+  });
+
+  // Mobile swipe controls (same as before)
+  let touchStartX = null;
+  let touchStartY = null;
+
+  window.addEventListener('touchstart', e => {
+    const t = e.touches[0];
+    touchStartX = t.clientX;
+    touchStartY = t.clientY;
+  });
+
+  window.addEventListener('touchmove', e => {
+    if (!touchStartX || !touchStartY) return;
+    const t = e.touches[0];
+    const dx = t.clientX - touchStartX;
+    const dy = t.clientY - touchStartY;
+    keys['ArrowRight'] = dx > 20;
+    keys['ArrowLeft'] = dx < -20;
+    keys['ArrowDown'] = dy > 20;
+    keys['ArrowUp'] = dy < -20;
+  });
+
+  window.addEventListener('touchend', e => {
+    keys['ArrowRight'] = false;
+    keys['ArrowLeft'] = false;
+    keys['ArrowDown'] = false;
+    keys['ArrowUp'] = false;
+    touchStartX = null;
+    touchStartY = null;
+  });
+
+  startBtn.onclick = () => {
+    startGame();
+  };
+
+  initBgStars();
+
+})();
+</script>
+
+</body>
+</html>
