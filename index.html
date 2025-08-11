@@ -3,168 +3,86 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-<title>Catch the Star - Neon Space Edition</title>
+<title>Catch the Star - Fixed Final</title>
 <style>
   html, body {
     margin: 0; padding: 0; overflow: hidden;
     background: #0b1221;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: Arial, sans-serif;
+    color: #7be495;
     user-select: none;
     height: 100%;
-    color: #7be495;
   }
-  #gameCanvas {
+  canvas {
     display: block;
-    margin: 0 auto;
-    background: transparent;
     position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    z-index: 1;
+    top:0; left:0;
   }
   #hud {
     position: fixed;
-    top: 12px;
-    left: 50%;
+    top: 10px; left: 50%;
     transform: translateX(-50%);
-    display: flex;
-    gap: 25px;
-    font-size: 22px;
-    font-weight: 700;
-    text-shadow: 0 0 6px #7be495cc;
-    z-index: 20;
-    user-select: none;
-  }
-  #muteBtn {
-    position: fixed;
-    top: 12px;
-    right: 20px;
-    background: #192934;
-    border: none;
     color: #7be495;
     font-weight: bold;
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-    text-shadow: 0 0 8px #7be495cc;
-    z-index: 20;
+    font-size: 22px;
+    text-shadow: 0 0 5px #7be495bb;
     user-select: none;
-    transition: background 0.3s;
+    display: flex;
+    gap: 30px;
+    z-index: 10;
   }
-  #muteBtn:hover {
-    background: #4caf50;
-  }
-  #bottomCredit {
+  #startOverlay, #gameOverOverlay {
     position: fixed;
-    bottom: 8px;
-    right: 12px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #7be495cc;
-    user-select: none;
-    z-index: 20;
-    text-shadow: 0 0 8px #7be495cc;
-  }
-  #startOverlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0; left: 0; right:0; bottom: 0;
     background: rgba(11, 18, 33, 0.95);
     color: #7be495;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    font-size: 26px;
     font-weight: 700;
+    font-size: 28px;
     user-select: none;
-    z-index: 30;
+    z-index: 20;
   }
-  #startOverlay label {
-    font-weight: 600;
-    margin: 8px 0 4px;
-    font-size: 18px;
+  #startOverlay > * {
+    margin: 10px 0;
   }
-  #startBtn {
-    margin-top: 20px;
-    font-size: 22px;
-    background: linear-gradient(45deg, #7be495, #4caf50);
+  input, select {
+    font-size: 20px;
+    padding: 6px 10px;
+    border-radius: 6px;
     border: none;
-    padding: 15px 40px;
-    border-radius: 10px;
+    text-align: center;
     color: #0b1221;
-    cursor: pointer;
-    box-shadow: 0 0 15px #4caf50aa;
-    font-weight: 800;
-    user-select: none;
-    transition: background 0.3s;
+    font-weight: 600;
   }
-  #startBtn:disabled {
+  button {
+    font-size: 22px;
+    padding: 12px 36px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    background: linear-gradient(45deg, #7be495, #4caf50);
+    color: #0b1221;
+    font-weight: 800;
+    box-shadow: 0 0 15px #4caf50cc;
+  }
+  button:disabled {
     background: #466e44;
     cursor: not-allowed;
   }
-  #startBtn:hover:enabled {
-    background: linear-gradient(45deg, #4caf50, #7be495);
-  }
-  #gameOverOverlay {
-    position: fixed;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(11, 18, 33, 0.95);
-    color: #7be495;
-    display: none;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    font-size: 28px;
-    font-weight: 700;
-    user-select: none;
-    z-index: 35;
-  }
-  #finalScore {
-    margin-top: 12px;
-    font-size: 24px;
-  }
-  #leaderboard {
-    margin-top: 20px;
-    font-size: 18px;
-    color: #a3d9b1;
-    text-align: left;
-    max-width: 280px;
-  }
-  #leaderboard h3 {
-    margin-bottom: 8px;
-  }
-  #leaderboard ol {
-    padding-left: 20px;
-  }
-  #restartBtn {
-    margin-top: 25px;
-    font-size: 24px;
-    background: linear-gradient(45deg, #7be495, #4caf50);
-    border: none;
-    padding: 14px 44px;
-    border-radius: 10px;
-    color: #0b1221;
-    cursor: pointer;
-    box-shadow: 0 0 18px #4caf50cc;
-    font-weight: 800;
-    user-select: none;
-    transition: background 0.3s;
-  }
-  #restartBtn:hover {
-    background: linear-gradient(45deg, #4caf50, #7be495);
-  }
-
-  /* Joystick styles */
   #joystickContainer {
     position: fixed;
-    bottom: 40px;
-    left: 40px;
+    bottom: 30px;
+    left: 30px;
     width: 120px;
     height: 120px;
     background: rgba(123, 228, 149, 0.15);
     border-radius: 50%;
-    display: none;
     touch-action: none;
-    z-index: 25;
+    display: none;
+    z-index: 15;
   }
   #joystickBase {
     position: absolute;
@@ -183,7 +101,12 @@
     left: 35px;
     box-shadow: 0 0 15px #7be495bb;
     transition: top 0.05s, left 0.05s;
-    touch-action: none;
+  }
+  #leaderboard ol {
+    margin: 0;
+    padding-left: 20px;
+    font-weight: 600;
+    font-size: 20px;
   }
 </style>
 </head>
@@ -198,27 +121,18 @@
   <div id="combo">Combo: x1</div>
 </div>
 
-<button id="muteBtn" title="Toggle Mute">🔊</button>
-
-<div id="bottomCredit">by Anar &amp; Ermuun</div>
-
 <div id="startOverlay">
   <div>Catch the Star</div>
-
-  <label for="playerName">Enter Your Name:</label>
-  <input type="text" id="playerName" maxlength="15" placeholder="Your name here" style="font-size:18px; padding:6px 10px; border-radius:6px; border:none; text-align:center;"/>
-
-  <label for="controlType">Choose Control:</label>
-  <select id="controlType" style="font-size:18px; padding:6px 10px; border-radius:6px; border:none;">
+  <input type="text" id="playerName" placeholder="Enter your name" maxlength="15" />
+  <select id="controlType">
     <option value="pc">PC (Keyboard)</option>
     <option value="mobile">Mobile (Joystick)</option>
   </select>
-
   <button id="startBtn" disabled>Start Game</button>
 </div>
 
-<div id="gameOverOverlay">
-  Game Over!<br>
+<div id="gameOverOverlay" style="display:none;">
+  <div>Game Over!</div>
   <div id="finalScore"></div>
   <div id="leaderboard">
     <h3>Leaderboard</h3>
@@ -227,7 +141,6 @@
   <button id="restartBtn">Restart</button>
 </div>
 
-<!-- Joystick UI -->
 <div id="joystickContainer">
   <div id="joystickBase"></div>
   <div id="joystickThumb"></div>
@@ -237,91 +150,68 @@
 (() => {
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
+
   const scoreDisplay = document.getElementById('score');
   const timeDisplay = document.getElementById('time');
   const levelDisplay = document.getElementById('level');
   const comboDisplay = document.getElementById('combo');
-  const muteBtn = document.getElementById('muteBtn');
+
   const startOverlay = document.getElementById('startOverlay');
-  const startBtn = document.getElementById('startBtn');
   const gameOverOverlay = document.getElementById('gameOverOverlay');
   const finalScoreDisplay = document.getElementById('finalScore');
-  const restartBtn = document.getElementById('restartBtn');
+  const leaderboardList = document.getElementById('leaderboardList');
+
   const playerNameInput = document.getElementById('playerName');
   const controlTypeSelect = document.getElementById('controlType');
+  const startBtn = document.getElementById('startBtn');
+  const restartBtn = document.getElementById('restartBtn');
 
   const joystickContainer = document.getElementById('joystickContainer');
   const joystickThumb = document.getElementById('joystickThumb');
 
-  function resizeCanvas() {
+  // Canvas sizing
+  function resize() {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
   }
-  window.addEventListener('resize', resizeCanvas);
-  resizeCanvas();
+  window.addEventListener('resize', resize);
+  resize();
 
-  let audioContext = null;
-  let bgMusic = null;
-  let isMuted = false;
-
-  function setupAudio() {
-    if (!audioContext) {
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      bgMusic = new Audio("https://cdn.jsdelivr.net/gh/jshawl/catch-the-star-assets/spacey-arcade-loop.mp3");
-      bgMusic.loop = true;
-      bgMusic.volume = 0.3;
-      bgMusic.play();
-    }
-  }
-  muteBtn.onclick = () => {
-    if (!bgMusic) return;
-    isMuted = !isMuted;
-    bgMusic.muted = isMuted;
-    muteBtn.textContent = isMuted ? '🔇' : '🔊';
-  };
-
-  const colors = {
-    gold: "#ffdd57",
-    blue: "#57ddff",
-    red: "#ff5757",
-    player: "#7be495",
-    obstacle: "#ff4444"
-  };
-
+  // Player object
   const player = {
-    size: 28,
     x: 0,
     y: 0,
+    size: 28,
     speed: 5,
     vx: 0,
     vy: 0,
-    trail: []
+    trail: [],
   };
 
-  // Track keys, support arrows + WASD
-  const keys = {};
-
+  // Stars and obstacles
   const stars = [];
   const obstacles = [];
   let particles = [];
 
-  const bgStarsLayers = [
-    { count: 100, speed: 0.2, size: 1, stars: [] },
-    { count: 60, speed: 0.4, size: 1.5, stars: [] },
-    { count: 40, speed: 0.7, size: 2, stars: [] }
-  ];
+  // Background stars (for effect)
+  const bgStars = [];
+  const BG_STAR_COUNT = 100;
 
+  // Game state
   let score = 0;
   let timeLeft = 30;
   let level = 1;
   let combo = 1;
   let comboTimer = 0;
-  const comboResetTime = 1800; // ms
+  const comboResetTime = 1800;
 
   let gameStarted = false;
 
   // Control mode: 'pc' or 'mobile'
   let controlMode = 'pc';
+
+  // Keyboard input
+  const keys = {};
 
   // Joystick state
   const joystickState = {
@@ -333,20 +223,15 @@
     maxDistance: 40,
   };
 
-  // Validate player name input to enable start button
+  // Enable start button only if player name entered
   playerNameInput.addEventListener('input', () => {
-    const val = playerNameInput.value.trim();
-    startBtn.disabled = val.length === 0;
+    startBtn.disabled = playerNameInput.value.trim().length === 0;
   });
 
-  // Show/hide joystick based on control select
+  // Show/hide joystick container based on control selection
   controlTypeSelect.addEventListener('change', () => {
     controlMode = controlTypeSelect.value;
-    if (controlMode === 'mobile') {
-      joystickContainer.style.display = 'block';
-    } else {
-      joystickContainer.style.display = 'none';
-    }
+    joystickContainer.style.display = controlMode === 'mobile' ? 'block' : 'none';
   });
 
   function randomRange(min, max) {
@@ -355,10 +240,11 @@
   function clamp(num, min, max) {
     return Math.min(Math.max(num, min), max);
   }
-  function distance(x1,y1,x2,y2) {
+  function dist(x1, y1, x2, y2) {
     return Math.hypot(x2 - x1, y2 - y1);
   }
 
+  // Reset player position center screen
   function resetPlayer() {
     player.x = canvas.width / 2 - player.size / 2;
     player.y = canvas.height / 2 - player.size / 2;
@@ -367,151 +253,124 @@
     player.trail = [];
   }
 
-  function initBgStars() {
-    bgStarsLayers.forEach(layer => {
-      layer.stars = [];
-      for(let i=0; i<layer.count; i++) {
-        layer.stars.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          size: layer.size,
-          speed: layer.speed
-        });
-      }
-    });
-  }
-
-  function spawnStar() {
-    const types = ["gold", "blue", "red"];
-    const type = types[Math.floor(Math.random() * types.length)];
-    const size = 18;
-    stars.push({
-      x: randomRange(0, canvas.width - size),
-      y: randomRange(0, canvas.height - size),
-      size,
-      type,
-      vx: randomRange(-0.4, 0.4),
-      vy: randomRange(-0.4, 0.4),
-      baseGlow: 0
-    });
-  }
-
-  function spawnObstacle() {
-    const size = 36;
-    obstacles.push({
-      x: randomRange(0, canvas.width - size),
-      y: randomRange(0, canvas.height - size),
-      size,
-      vx: randomRange(-0.9, 0.9),
-      vy: randomRange(-0.9, 0.9)
-    });
-  }
-
-  function playBeep(freq) {
-    if (!audioContext || isMuted) return;
-    const osc = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    osc.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(freq, audioContext.currentTime);
-    gainNode.gain.setValueAtTime(0.12, audioContext.currentTime);
-    osc.start();
-    osc.stop(audioContext.currentTime + 0.1);
-  }
-
-  function createParticles(x, y, color, count=15) {
-    for (let i=0; i<count; i++) {
-      particles.push({
-        x, y,
-        dx: (Math.random() - 0.5) * 3,
-        dy: (Math.random() - 0.5) * 3,
-        life: 45,
-        color,
-        alpha: 1,
-        decay: 0.025
+  // Spawn background stars for effect
+  function spawnBgStars() {
+    bgStars.length = 0;
+    for(let i=0; i<BG_STAR_COUNT; i++) {
+      bgStars.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        size: Math.random() * 2 + 0.5,
+        speed: Math.random() * 0.5 + 0.1
       });
     }
   }
 
-  function updateParticles() {
-    particles.forEach(p => {
-      p.x += p.dx;
-      p.y += p.dy;
-      p.alpha -= p.decay;
-      p.life--;
+  // Spawn a star with random type and position
+  function spawnStar() {
+    const types = ['gold', 'blue', 'red'];
+    const type = types[Math.floor(Math.random() * types.length)];
+    stars.push({
+      x: randomRange(0, canvas.width - 18),
+      y: randomRange(0, canvas.height - 18),
+      size: 18,
+      type,
+      vx: randomRange(-0.3, 0.3),
+      vy: randomRange(-0.3, 0.3),
+      glow: 0,
     });
-    particles = particles.filter(p => p.life > 0 && p.alpha > 0);
   }
 
-  function updatePlayerTrail() {
-    player.trail.push({ x: player.x + player.size/2, y: player.y + player.size/2, alpha: 1 });
-    if (player.trail.length > 20) player.trail.shift();
-    player.trail.forEach(t => t.alpha -= 0.05);
-    player.trail = player.trail.filter(t => t.alpha > 0);
+  // Spawn an obstacle
+  function spawnObstacle() {
+    obstacles.push({
+      x: randomRange(0, canvas.width - 36),
+      y: randomRange(0, canvas.height - 36),
+      size: 36,
+      vx: randomRange(-0.6, 0.6),
+      vy: randomRange(-0.6, 0.6)
+    });
+  }
+
+  // Draw functions
+  function drawBgStars() {
+    ctx.fillStyle = "#5588cc88";
+    bgStars.forEach(s => {
+      ctx.beginPath();
+      ctx.shadowColor = "#5588ccaa";
+      ctx.shadowBlur = 6;
+      ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
   }
 
   function drawPlayer() {
-    player.trail.forEach((t) => {
-      const radius = player.size / 2;
+    // Trail
+    player.trail.forEach(t => {
       ctx.beginPath();
       ctx.fillStyle = `rgba(123, 228, 149, ${t.alpha})`;
-      ctx.shadowColor = '#7be495';
+      ctx.shadowColor = "#7be495";
       ctx.shadowBlur = 20 * t.alpha;
-      ctx.arc(t.x, t.y, radius, 0, Math.PI * 2);
+      ctx.arc(t.x, t.y, player.size/2, 0, Math.PI*2);
       ctx.fill();
     });
-
-    ctx.fillStyle = colors.player;
+    // Player rect
+    ctx.fillStyle = "#7be495";
     ctx.shadowColor = "#00ffcc";
-    ctx.shadowBlur = 18;
+    ctx.shadowBlur = 15;
     ctx.fillRect(player.x, player.y, player.size, player.size);
     ctx.shadowBlur = 0;
   }
 
   function drawStars() {
     stars.forEach(star => {
-      star.baseGlow += 0.05;
-      const glow = (Math.sin(star.baseGlow) + 1) / 2;
+      star.glow += 0.07;
+      const glow = (Math.sin(star.glow) + 1) / 2;
 
       ctx.beginPath();
-      ctx.fillStyle = colors[star.type];
-      ctx.shadowColor = colors[star.type];
-      ctx.shadowBlur = 12 + glow * 8;
-      ctx.arc(star.x + star.size / 2, star.y + star.size / 2, star.size / 2, 0, Math.PI * 2);
+      let col;
+      if(star.type === 'gold') col = "#ffdd57";
+      else if(star.type === 'blue') col = "#57ddff";
+      else col = "#ff5757";
+
+      ctx.fillStyle = col;
+      ctx.shadowColor = col;
+      ctx.shadowBlur = 15 + glow * 10;
+      ctx.arc(star.x + star.size/2, star.y + star.size/2, star.size/2, 0, Math.PI*2);
       ctx.fill();
       ctx.shadowBlur = 0;
     });
   }
 
-  function drawObstacleWithSpikes(obs) {
+  function drawObstacle(obs) {
     const spikeCount = 8;
-    const spikeLength = 9;
-    const centerX = obs.x + obs.size / 2;
-    const centerY = obs.y + obs.size / 2;
+    const spikeLength = 8;
+    const cx = obs.x + obs.size/2;
+    const cy = obs.y + obs.size/2;
 
-    ctx.fillStyle = colors.obstacle;
+    ctx.fillStyle = "#ff4444";
     ctx.shadowColor = "#ff0000";
-    ctx.shadowBlur = 22;
+    ctx.shadowBlur = 20;
     ctx.fillRect(obs.x, obs.y, obs.size, obs.size);
     ctx.shadowBlur = 0;
 
     ctx.fillStyle = "#ff0000";
     ctx.strokeStyle = "#aa0000";
     ctx.lineWidth = 2;
-    for (let i = 0; i < spikeCount; i++) {
-      const angle = (Math.PI * 2 / spikeCount) * i;
-      const startX = centerX + Math.cos(angle) * (obs.size / 2);
-      const startY = centerY + Math.sin(angle) * (obs.size / 2);
-      const endX = centerX + Math.cos(angle) * (obs.size / 2 + spikeLength);
-      const endY = centerY + Math.sin(angle) * (obs.size / 2 + spikeLength);
+    for(let i=0; i<spikeCount; i++) {
+      const angle = (Math.PI*2 / spikeCount) * i;
+      const startX = cx + Math.cos(angle) * (obs.size/2);
+      const startY = cy + Math.sin(angle) * (obs.size/2);
+      const endX = cx + Math.cos(angle) * (obs.size/2 + spikeLength);
+      const endY = cy + Math.sin(angle) * (obs.size/2 + spikeLength);
 
       ctx.beginPath();
       ctx.moveTo(startX, startY);
       ctx.lineTo(endX, endY);
       ctx.lineTo(
-        centerX + Math.cos(angle + 0.1) * (obs.size / 2 + spikeLength / 2),
-        centerY + Math.sin(angle + 0.1) * (obs.size / 2 + spikeLength / 2)
+        cx + Math.cos(angle + 0.1) * (obs.size/2 + spikeLength/2),
+        cy + Math.sin(angle + 0.1) * (obs.size/2 + spikeLength/2)
       );
       ctx.closePath();
       ctx.fill();
@@ -519,39 +378,74 @@
     }
   }
 
-  function drawBgStars() {
-    bgStarsLayers.forEach(layer => {
-      ctx.fillStyle = "#99ccff88";
-      layer.stars.forEach(s => {
-        ctx.beginPath();
-        ctx.shadowColor = "#99ccffdd";
-        ctx.shadowBlur = 8;
-        ctx.arc(s.x, s.y, s.size, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.shadowBlur = 0;
-      });
+  function drawParticles() {
+    particles.forEach(p => {
+      ctx.beginPath();
+      ctx.fillStyle = `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+      ctx.shadowColor = `rgba(${p.r},${p.g},${p.b},${p.alpha})`;
+      ctx.shadowBlur = 10;
+      ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
     });
   }
 
+  // Particle creation helper
+  function createParticles(x, y, color, count=15) {
+    let r=0,g=0,b=0;
+    if(color === 'gold') { r=255; g=221; b=87; }
+    else if(color === 'blue') { r=87; g=221; b=255; }
+    else if(color === 'red') { r=255; g=87; b=87; }
+    else if(color === 'obstacle') { r=255; g=68; b=68; }
+    for(let i=0; i<count; i++) {
+      particles.push({
+        x,
+        y,
+        size: Math.random()*3 + 2,
+        r, g, b,
+        dx: (Math.random()-0.5)*3,
+        dy: (Math.random()-0.5)*3,
+        alpha: 1,
+        decay: 0.03 + Math.random()*0.02
+      });
+    }
+  }
+
+  // Update functions
+  function updateParticles() {
+    particles.forEach(p => {
+      p.x += p.dx;
+      p.y += p.dy;
+      p.alpha -= p.decay;
+    });
+    particles = particles.filter(p => p.alpha > 0);
+  }
+
+  function updatePlayerTrail() {
+    player.trail.push({ x: player.x + player.size/2, y: player.y + player.size/2, alpha: 1 });
+    if(player.trail.length > 20) player.trail.shift();
+    player.trail.forEach(t => t.alpha -= 0.05);
+    player.trail = player.trail.filter(t => t.alpha > 0);
+  }
+
   function update(delta) {
-    // Movement target velocity
+    // Update velocity based on control mode and input
     let targetVx = 0;
     let targetVy = 0;
 
-    if (controlMode === 'pc') {
-      if (keys['ArrowUp'] || keys['w'] || keys['W']) targetVy = -player.speed;
-      if (keys['ArrowDown'] || keys['s'] || keys['S']) targetVy = player.speed;
-      if (keys['ArrowLeft'] || keys['a'] || keys['A']) targetVx = -player.speed;
-      if (keys['ArrowRight'] || keys['d'] || keys['D']) targetVx = player.speed;
-    } else if (controlMode === 'mobile') {
-      // Use joystick delta normalized to max distance
+    if(controlMode === 'pc') {
+      if(keys['ArrowUp'] || keys['w'] || keys['W']) targetVy = -player.speed;
+      if(keys['ArrowDown'] || keys['s'] || keys['S']) targetVy = player.speed;
+      if(keys['ArrowLeft'] || keys['a'] || keys['A']) targetVx = -player.speed;
+      if(keys['ArrowRight'] || keys['d'] || keys['D']) targetVx = player.speed;
+    } else if(controlMode === 'mobile') {
       const normX = joystickState.deltaX / joystickState.maxDistance;
       const normY = joystickState.deltaY / joystickState.maxDistance;
       targetVx = normX * player.speed;
       targetVy = normY * player.speed;
     }
 
-    // Smooth velocity
+    // Smooth velocity changes
     player.vx += (targetVx - player.vx) * 0.3;
     player.vy += (targetVy - player.vy) * 0.3;
 
@@ -561,69 +455,66 @@
     player.x = clamp(player.x, 0, canvas.width - player.size);
     player.y = clamp(player.y, 0, canvas.height - player.size);
 
-    // Move background stars downward to simulate movement
-    bgStarsLayers.forEach(layer => {
-      layer.stars.forEach(s => {
-        s.y += layer.speed;
-        if (s.y > canvas.height) s.y = 0;
-      });
+    // Move background stars slowly downward
+    bgStars.forEach(s => {
+      s.y += s.speed;
+      if(s.y > canvas.height) s.y = 0;
     });
 
-    // Move stars in random pattern
+    // Move stars drifting slowly
     stars.forEach(star => {
       star.x += star.vx;
       star.y += star.vy;
-      if (star.x < 0) star.x = canvas.width - star.size;
-      else if (star.x > canvas.width - star.size) star.x = 0;
-      if (star.y < 0) star.y = canvas.height - star.size;
-      else if (star.y > canvas.height - star.size) star.y = 0;
+      if(star.x < 0) star.x = canvas.width - star.size;
+      else if(star.x > canvas.width - star.size) star.x = 0;
+      if(star.y < 0) star.y = canvas.height - star.size;
+      else if(star.y > canvas.height - star.size) star.y = 0;
     });
 
-    // Move obstacles and bounce inside canvas bounds
+    // Move obstacles and bounce off edges
     obstacles.forEach(obs => {
       obs.x += obs.vx;
       obs.y += obs.vy;
-      if (obs.x < 0 || obs.x > canvas.width - obs.size) obs.vx *= -1;
-      if (obs.y < 0 || obs.y > canvas.height - obs.size) obs.vy *= -1;
+      if(obs.x < 0 || obs.x > canvas.width - obs.size) obs.vx *= -1;
+      if(obs.y < 0 || obs.y > canvas.height - obs.size) obs.vy *= -1;
     });
 
-    // Star collision check
-    stars.forEach((star, index) => {
-      const dist = distance(player.x + player.size / 2, player.y + player.size / 2,
-                            star.x + star.size / 2, star.y + star.size / 2);
-      if (dist < (player.size + star.size) / 2) {
-        if (star.type === 'gold') {
+    // Check collision with stars
+    stars.forEach((star, idx) => {
+      const d = dist(player.x + player.size/2, player.y + player.size/2,
+                     star.x + star.size/2, star.y + star.size/2);
+      if(d < (player.size + star.size)/2) {
+        if(star.type === 'gold') {
           score += 1;
-          playBeep(600);
-          createParticles(star.x + star.size/2, star.y + star.size/2, colors.gold);
-        } else if (star.type === 'blue') {
+          createParticles(star.x + star.size/2, star.y + star.size/2, 'gold');
+        } else if(star.type === 'blue') {
           score += 2;
           timeLeft = Math.min(timeLeft + 2, 30);
-          playBeep(850);
-          createParticles(star.x + star.size/2, star.y + star.size/2, colors.blue);
-        } else if (star.type === 'red') {
+          createParticles(star.x + star.size/2, star.y + star.size/2, 'blue');
+        } else if(star.type === 'red') {
           score = Math.max(score - 1, 0);
-          playBeep(350);
-          createParticles(star.x + star.size/2, star.y + star.size/2, colors.red);
+          createParticles(star.x + star.size/2, star.y + star.size/2, 'red');
         }
-        stars.splice(index, 1);
+        stars.splice(idx, 1);
         spawnStar();
+        combo++;
+        comboTimer = 0;
       }
     });
 
-    // Obstacle collision check: lose points on contact but no game over
+    // Check collision with obstacles
     obstacles.forEach(obs => {
-      const dist = distance(player.x + player.size / 2, player.y + player.size / 2,
-                            obs.x + obs.size / 2, obs.y + obs.size / 2);
-      if (dist < (player.size + obs.size) / 2) {
+      const d = dist(player.x + player.size/2, player.y + player.size/2,
+                     obs.x + obs.size/2, obs.y + obs.size/2);
+      if(d < (player.size + obs.size)/2) {
         score = Math.max(score - 3, 0);
-        playBeep(200);
-        createParticles(obs.x + obs.size/2, obs.y + obs.size/2, colors.obstacle, 30);
+        createParticles(obs.x + obs.size/2, obs.y + obs.size/2, 'obstacle', 30);
+        combo = 1; // reset combo on obstacle hit
       }
     });
 
     comboTimer += delta;
-    if (comboTimer > comboResetTime) {
+    if(comboTimer > comboResetTime) {
       combo = 1;
       comboTimer = 0;
     }
@@ -636,19 +527,20 @@
     levelDisplay.textContent = `Level: ${level}`;
     comboDisplay.textContent = `Combo: x${combo}`;
 
-    if (gameStarted) {
-      timeLeft -= delta / 1000;
-      if (timeLeft <= 0) {
+    if(gameStarted) {
+      timeLeft -= delta/1000;
+      if(timeLeft <= 0) {
+        timeLeft = 0;
         endGame();
       }
     }
   }
 
   function draw() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.clearRect(0,0,canvas.width,canvas.height);
     drawBgStars();
     drawStars();
-    obstacles.forEach(drawObstacleWithSpikes);
+    obstacles.forEach(drawObstacle);
     drawPlayer();
     drawParticles();
   }
@@ -662,21 +554,20 @@
     joystickState.originY = touch.clientY;
     joystickState.deltaX = 0;
     joystickState.deltaY = 0;
-    moveJoystickThumb(0, 0);
+    moveJoystickThumb(0,0);
   }
   function onJoystickMove(e) {
-    if (!joystickState.active) return;
+    if(!joystickState.active) return;
     e.preventDefault();
     const touch = e.touches ? e.touches[0] : e;
     let dx = touch.clientX - joystickState.originX;
     let dy = touch.clientY - joystickState.originY;
 
-    // Limit max distance
-    const dist = Math.hypot(dx, dy);
-    if (dist > joystickState.maxDistance) {
+    const distFromOrigin = Math.hypot(dx, dy);
+    if(distFromOrigin > joystickState.maxDistance) {
       const angle = Math.atan2(dy, dx);
-      dx = Math.cos(angle) * joystickState.maxDistance;
-      dy = Math.sin(angle) * joystickState.maxDistance;
+      dx = Math.cos(angle)*joystickState.maxDistance;
+      dy = Math.sin(angle)*joystickState.maxDistance;
     }
     joystickState.deltaX = dx;
     joystickState.deltaY = dy;
@@ -687,14 +578,14 @@
     joystickState.active = false;
     joystickState.deltaX = 0;
     joystickState.deltaY = 0;
-    moveJoystickThumb(0, 0);
+    moveJoystickThumb(0,0);
   }
   function moveJoystickThumb(dx, dy) {
     joystickThumb.style.left = `${35 + dx}px`;
     joystickThumb.style.top = `${35 + dy}px`;
   }
 
-  // Leaderboard localStorage key
+  // Leaderboard (localStorage)
   const LEADERBOARD_KEY = "catchthestargame_leaderboard";
 
   function getLeaderboard() {
@@ -703,23 +594,22 @@
   }
   function saveScoreToLeaderboard(name, score) {
     const lb = getLeaderboard();
-    lb.push({ name, score });
+    lb.push({name, score});
     lb.sort((a,b) => b.score - a.score);
-    if (lb.length > 5) lb.length = 5; // keep top 5 only
+    if(lb.length > 5) lb.length = 5;
     localStorage.setItem(LEADERBOARD_KEY, JSON.stringify(lb));
   }
   function renderLeaderboard() {
-    const lbList = document.getElementById('leaderboardList');
-    lbList.innerHTML = '';
+    leaderboardList.innerHTML = '';
     const lb = getLeaderboard();
-    if (lb.length === 0) {
-      lbList.innerHTML = '<li>No scores yet</li>';
+    if(lb.length === 0) {
+      leaderboardList.innerHTML = '<li>No scores yet</li>';
       return;
     }
     lb.forEach(({name, score}) => {
       const li = document.createElement('li');
       li.textContent = `${name}: ${score}`;
-      lbList.appendChild(li);
+      leaderboardList.appendChild(li);
     });
   }
 
@@ -728,12 +618,10 @@
     gameOverOverlay.style.display = 'flex';
     finalScoreDisplay.textContent = `Your Score: ${score}`;
 
-    // Save score and show leaderboard
     const playerName = playerNameInput.value.trim() || "Unknown";
     saveScoreToLeaderboard(playerName, score);
     renderLeaderboard();
 
-    // Hide joystick on game over
     joystickContainer.style.display = 'none';
   }
 
@@ -748,23 +636,17 @@
     stars.length = 0;
     obstacles.length = 0;
     particles.length = 0;
-    initBgStars();
+    spawnBgStars();
     for(let i=0; i<12; i++) spawnStar();
     for(let i=0; i<5; i++) spawnObstacle();
     resetPlayer();
-    setupAudio();
     gameStarted = true;
 
-    // Show joystick only if mobile control
-    if (controlMode === 'mobile') {
-      joystickContainer.style.display = 'block';
-    } else {
-      joystickContainer.style.display = 'none';
-    }
+    joystickContainer.style.display = controlMode === 'mobile' ? 'block' : 'none';
   }
 
   startBtn.onclick = () => {
-    if(playerNameInput.value.trim().length === 0) return; // prevent start without name
+    if(playerNameInput.value.trim().length === 0) return;
     controlMode = controlTypeSelect.value;
     startGame();
   };
@@ -774,14 +656,11 @@
     startGame();
   };
 
-  window.addEventListener('keydown', e => {
-    keys[e.key] = true;
-  });
-  window.addEventListener('keyup', e => {
-    keys[e.key] = false;
-  });
+  // Keyboard listeners
+  window.addEventListener('keydown', e => keys[e.key] = true);
+  window.addEventListener('keyup', e => keys[e.key] = false);
 
-  // Joystick touch/mouse events
+  // Joystick listeners
   joystickContainer.addEventListener('touchstart', onJoystickStart, {passive:false});
   joystickContainer.addEventListener('touchmove', onJoystickMove, {passive:false});
   joystickContainer.addEventListener('touchend', onJoystickEnd, {passive:false});
@@ -790,18 +669,20 @@
   window.addEventListener('mousemove', onJoystickMove);
   window.addEventListener('mouseup', onJoystickEnd);
 
+  // Main loop
   let lastTime = 0;
   function gameLoop(timestamp = 0) {
     const delta = timestamp - lastTime;
     lastTime = timestamp;
-    if (gameStarted) {
+
+    if(gameStarted) {
       update(delta);
       draw();
     }
     requestAnimationFrame(gameLoop);
   }
-
   gameLoop();
+
 })();
 </script>
 
