@@ -98,7 +98,7 @@
   #gameOverOverlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
-    background: rgba(11, 18, 33, 0.95);
+    /* background line REMOVED here */
     color: #7be495;
     display: none;
     flex-direction: column;
@@ -487,74 +487,83 @@
           playBeep(600);
           createParticles(star.x + star.size/2, star.y + star.size/2, colors.gold);
         } else if (star.type === 'blue') {
-          score += 2 * combo;
-          playBeep(800);
+          score += 3 * combo;
+          playBeep(850);
           createParticles(star.x + star.size/2, star.y + star.size/2, colors.blue);
+          timeLeft = Math.min(timeLeft + 2, 30);
         } else if (star.type === 'red') {
-          score = Math.max(0, score - 1 * combo);
-          playBeep(200);
+          score += 5 * combo;
+          playBeep(1000);
           createParticles(star.x + star.size/2, star.y + star.size/2, colors.red);
-          combo = 1;
           comboTimer = 0;
-          comboDisplay.textContent = `Combo: x${combo}`;
-        }
-        stars.splice(index, 1);
-        scoreDisplay.textContent = `Score: ${score}`;
-        if (star.type !== 'red') {
           combo++;
           comboTimer = 0;
-          comboDisplay.textContent = `Combo: x${combo}`;
         }
+        stars.splice(index, 1);
+        spawnStar();
       }
     });
 
     obstacles.forEach(obs => {
-      const dx = player.x - obs.x;
-      const dy = player.y - obs.y;
-      if (Math.abs(dx) < obs.size && Math.abs(dy) < obs.size) {
-        score = Math.max(0, score - 2 * combo);
-        playBeep(100);
-        scoreDisplay.textContent = `Score: ${score}`;
-        combo = 1;
-        comboTimer = 0;
-        comboDisplay.textContent = `Combo: x${combo}`;
+      const dist = distance(player.x + player.size / 2, player.y + player.size / 2,
+                            obs.x + obs.size / 2, obs.y + obs.size / 2);
+      if (dist < (player.size + obs.size) / 2) {
+        // Game Over
+        gameOver();
       }
     });
 
     comboTimer += delta;
     if (comboTimer > comboResetTime) {
       combo = 1;
-      comboDisplay.textContent = `Combo: x${combo}`;
+      comboTimer = 0;
     }
 
     updateParticles();
     updatePlayerTrail();
+
+    scoreDisplay.textContent = `Score: ${score}`;
+    timeDisplay.textContent = `Time: ${Math.ceil(timeLeft)}`;
+    levelDisplay.textContent = `Level: ${level}`;
+    comboDisplay.textContent = `Combo: x${combo}`;
+
+    if (gameStarted) {
+      timeLeft -= delta / 1000;
+      if (timeLeft <= 0) {
+        gameOver();
+      }
+    }
   }
 
   function draw() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-
     drawBgStars();
     drawStars();
     obstacles.forEach(drawObstacleWithSpikes);
-    drawParticles();
     drawPlayer();
+    drawParticles();
   }
 
-  let timerInterval = null;
   let lastTime = 0;
-
-  function gameLoop(time=0) {
-    if (!gameStarted) return;
-    const delta = time - lastTime;
-    lastTime = time;
-    update(delta);
-    draw();
+  function gameLoop(timestamp = 0) {
+    const delta = timestamp - lastTime;
+    lastTime = timestamp;
+    if (gameStarted) {
+      update(delta);
+      draw();
+    }
     requestAnimationFrame(gameLoop);
   }
 
-  function startGame() {
-    setupAudio();
+  function gameOver() {
+    gameStarted = false;
+    gameOverOverlay.style.display = 'flex';
+    finalScoreDisplay.textContent = `Your Score: ${score}`;
+  }
+
+  startBtn.onclick = () => {
+    startOverlay.style.display = 'none';
+    gameOverOverlay.style.display = 'none';
     score = 0;
     timeLeft = 30;
     level = 1;
@@ -563,120 +572,46 @@
     stars.length = 0;
     obstacles.length = 0;
     particles.length = 0;
-    resetPlayer();
-    scoreDisplay.textContent = `Score: ${score}`;
-    timeDisplay.textContent = `Time: ${timeLeft}`;
-    levelDisplay.textContent = `Level: ${level}`;
-    comboDisplay.textContent = `Combo: x${combo}`;
-    startOverlay.style.display = 'none';
-    gameOverOverlay.style.display = 'none';
-    gameStarted = true;
-    lastTime = performance.now();
-
     initBgStars();
-
-    // Spawn initial stars and obstacles
-    for(let i=0; i<6; i++) spawnStar();
-    for(let i=0; i<4; i++) spawnObstacle();
-
-    if (timerInterval) clearInterval(timerInterval);
-    timerInterval = setInterval(() => {
-      if (!gameStarted) {
-        clearInterval(timerInterval);
-        return;
-      }
-      timeLeft--;
-      timeDisplay.textContent = `Time: ${timeLeft}`;
-
-      // Level up every 10 seconds
-      if (timeLeft > 0 && timeLeft % 10 === 0 && timeLeft !== 30) {
-        level++;
-        levelDisplay.textContent = `Level: ${level}`;
-
-        // Spawn more obstacles and stars as level increases
-        for(let i=0; i<level + 2; i++) spawnObstacle();
-        for(let i=0; i<4 + level; i++) spawnStar();
-
-        // Increase player speed gradually (max 9)
-        player.speed = Math.min(9, player.speed + 0.5);
-      }
-
-      // Spawn stars more often every second
-      if (timeLeft > 0) {
-        const starsToSpawn = Math.min(3 + level, 8);
-        for(let i=0; i<starsToSpawn; i++) spawnStar();
-      }
-
-      if (timeLeft <= 0) {
-        gameStarted = false;
-        showGameOver();
-      }
-    }, 1000);
-
-    requestAnimationFrame(gameLoop);
-  }
-
-  function showGameOver() {
-    finalScoreDisplay.textContent = `Your Score: ${score}`;
-    gameOverOverlay.style.display = 'flex';
-  }
+    for(let i=0; i<12; i++) spawnStar();
+    for(let i=0; i<5; i++) spawnObstacle();
+    resetPlayer();
+    setupAudio();
+    gameStarted = true;
+  };
 
   restartBtn.onclick = () => {
-    startGame();
+    startOverlay.style.display = 'none';
+    gameOverOverlay.style.display = 'none';
+    score = 0;
+    timeLeft = 30;
+    level = 1;
+    combo = 1;
+    comboTimer = 0;
+    stars.length = 0;
+    obstacles.length = 0;
+    particles.length = 0;
+    initBgStars();
+    for(let i=0; i<12; i++) spawnStar();
+    for(let i=0; i<5; i++) spawnObstacle();
+    resetPlayer();
+    setupAudio();
+    gameStarted = true;
   };
 
   window.addEventListener('keydown', e => {
-    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D'].includes(e.key)) {
-      keys[e.key] = true;
-      e.preventDefault();
-    }
+    keys[e.key] = true;
   });
+
   window.addEventListener('keyup', e => {
-    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D'].includes(e.key)) {
-      keys[e.key] = false;
-      e.preventDefault();
-    }
+    keys[e.key] = false;
   });
 
-  // Mobile swipe controls (same as before)
-  let touchStartX = null;
-  let touchStartY = null;
-
-  window.addEventListener('touchstart', e => {
-    const t = e.touches[0];
-    touchStartX = t.clientX;
-    touchStartY = t.clientY;
-  });
-
-  window.addEventListener('touchmove', e => {
-    if (!touchStartX || !touchStartY) return;
-    const t = e.touches[0];
-    const dx = t.clientX - touchStartX;
-    const dy = t.clientY - touchStartY;
-    keys['ArrowRight'] = dx > 20;
-    keys['ArrowLeft'] = dx < -20;
-    keys['ArrowDown'] = dy > 20;
-    keys['ArrowUp'] = dy < -20;
-  });
-
-  window.addEventListener('touchend', e => {
-    keys['ArrowRight'] = false;
-    keys['ArrowLeft'] = false;
-    keys['ArrowDown'] = false;
-    keys['ArrowUp'] = false;
-    touchStartX = null;
-    touchStartY = null;
-  });
-
-  startBtn.onclick = () => {
-    startGame();
-  };
-
+  // Initialize
   initBgStars();
-
+  gameLoop();
 })();
 </script>
 
 </body>
-
 </html>
